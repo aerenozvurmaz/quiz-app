@@ -1,4 +1,5 @@
 from flask import Flask, jsonify
+from flask_cors import CORS
 from .config import Config
 from .extensions import db, migrate, mail, jwt
 from .api.health import bp as health_bp
@@ -13,6 +14,8 @@ from marshmallow import ValidationError
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
     db.init_app(app)
     migrate.init_app(app, db)
