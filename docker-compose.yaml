@@ -14,6 +14,7 @@ services:
       - GUNICORN_CMD_ARGS=--log-level=info
     depends_on:
       - db
+      - redis
 
   db:
     image: postgres:latest
@@ -24,5 +25,11 @@ services:
     ports:
       - "5433:5432"
 
+  redis:
+    image: redis:7-alpine   # lightweight redis image       # expose if you want to debug from host
+    volumes:
+      - redis_data:/data    # optional persistence
+
 volumes:
   db_data:
+  redis_data:

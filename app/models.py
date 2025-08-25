@@ -63,7 +63,7 @@ class QuizQuestion(db.Model):
     order = db.Column(db.Integer, nullable=False)
     text = db.Column(db.Text, nullable=False)
     category = db.Column(CategoryEnum, nullable = False, server_default = "science", index=True)
-    points = db.Column(db.Integer, nullable=False, default=10)
+    points = db.Column(db.Integer, nullable=False, default=5)
     difficulty = db.Column(DifficultyEnum, nullable=False, server_default="easy", index=True)
     quiz = db.relationship("Quiz", back_populates="questions")
 

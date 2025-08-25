@@ -37,6 +37,7 @@ class ForgotPasswordSchema(Schema):
     email = fields.Email(required=True)
 
 class ResetPasswordSchema(Schema):
-    token = fields.Str(required=True)
+    email = fields.Str(required=True)
+    digit_code = fields.Str(required=True)
     new_password = fields.Str(required=True)
     new_password_again = fields.Str(required=True)
