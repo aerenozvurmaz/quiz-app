@@ -151,9 +151,24 @@ def join_quiz(user_id:int, quiz_id:int):
     if user.user_status == "banned":
         raise ValueError("user banned from this application")
     quiz = quiz_repo.get_by_id(quiz_id)
-    if not quiz.published_at:
+    if not quiz.opens_at:
         raise ValueError("Quiz not opened yet")
+    if datetime.now(timezone.utc) >= quiz.closes_at:
+        raise ValueError("Quiz finished")
     user_repo.update_join_status(user, "joined")
+
+def delete_question(quiz_id: int, question_id:int):
+    quiz = quiz_repo.get_by_id(quiz_id)
+    if not quiz:
+        raise ValueError("Quiz not found")
+    if datetime.now(timezone.utc) >= quiz.opens_at:
+        raise ValueError("Quiz started no chance to delete")
+    qq = quiz_repo.get_QuizQuestion_by_ids(quiz_id,question_id)
+
+    if not qq:
+        raise ValueError("Question not found")
+    
+    db.session.delete(qq)
 
 def edit_quiz(quiz_id: int, question_id: int, data:dict) -> QuizQuestion:
     quiz = quiz_repo.get_by_id(quiz_id)
@@ -163,10 +178,7 @@ def edit_quiz(quiz_id: int, question_id: int, data:dict) -> QuizQuestion:
     if datetime.now(timezone.utc) >= quiz.opens_at:
         raise ValueError("Quiz started no chance to edit")
     
-    qq = (QuizQuestion.query
-          .options(selectinload(QuizQuestion.options))
-          .filter_by(id=question_id, quiz_id=quiz_id)
-          .first())
+    qq = quiz_repo.get_QuizQuestion_by_ids(quiz_id, question_id)
     if not qq:
         raise ValueError("Question not found")
     

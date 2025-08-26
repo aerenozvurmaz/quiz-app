@@ -80,3 +80,33 @@ def list_past_quizzes_with_my_placement(
         "total": total,
         "items": items,
     }
+
+def get_all_time_leaderboard(limit: int = 50, offset: int = 0, user_id: Optional[int] = None):
+    rows, total = lb_repo.all_time_rows(limit, offset)
+
+    leaderboard = [{
+        "user_id": r.user_id,
+        "username": r.username,
+        "points": int(r.points or 0),
+        "rank": int (r.rank),
+    } for r in rows]
+
+    cur_user = None
+    if user_id is not None:
+        r = lb_repo.all_time_current_user_row(user_id)
+        if r:
+            cur_user = {
+                "user_id": r.user_id,
+                "username": r.username,
+                "points": int(r.points or 0),
+                "rank": int(r.rank),
+            }
+
+    return {
+        "scope": "all_time",
+        "leaderboard": leaderboard,
+        "current_user": cur_user,
+        "total": total,
+        "limit": int(limit),
+        "offset": int(offset),
+    }

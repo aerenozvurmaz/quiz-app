@@ -107,3 +107,9 @@ class QuizRepo:
             .order_by(QuizQuestion.order.asc())
             .first()
         )
+    
+    def get_QuizQuestion_by_ids(self, quiz_id: int, question_id:int):
+        return (QuizQuestion.query
+          .options(selectinload(QuizQuestion.options))
+          .filter_by(id=question_id, quiz_id=quiz_id)
+          .first())

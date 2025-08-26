@@ -5,7 +5,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.orm import selectinload
 from ...models import Quiz, QuizQuestion
 from ...services.quiz_service import (
-    add_question, ban_user, create_quiz, add_questions, edit_quiz, get_my_answers, get_question_for_user, get_total_user_for_quiz, publish_quiz, finish_quiz,
+    add_question, ban_user, create_quiz, add_questions, delete_question, edit_quiz, get_my_answers, get_question_for_user, get_total_user_for_quiz, publish_quiz, finish_quiz,
     join_quiz, save_answer, submit_quiz, get_active_quiz, warn_user, get_quiz_for_admin, get_quiz_for_user
 )
 from ...schemas.quiz import AnswerSchema, QuizCreateSchema, QuizPaperPublicSchema, QuizPaperSchema, QuestionSchema
@@ -176,6 +176,17 @@ def api_add_question(quiz_id:int, payload):
         db.session.rollback()
         return fail(e, 400)
     
+@bp.delete("/<int:quiz_id>/questions/<int:question_id>")
+@admin_required
+def api_delete_question(quiz_id:int, question_id:int):
+    try:
+        qq = delete_question(quiz_id, question_id)
+        db.session.commit()
+        return success()
+    except ValueError as e:
+        db.session.rollback()
+        return fail(e,400)
+
 @bp.get("/past")
 @jwt_required(optional=True)
 def api_list_past_quizzes():

@@ -27,6 +27,44 @@ class LeaderboardRepo:
         ))
         return not_(flagged)
     
+    @staticmethod
+    def _all_time_rank_window():
+        return func.dense_rank().over(order_by=(User.points.desc(), User.created_at.asc()))
+    
+    def all_time_rows(self, limit: int, offset: int):
+        rank = self._all_time_rank_window()
+        rows = (
+            db.session.query(
+                User.id.label("user_id"),
+                User.username.label("username"),
+                User.points.label("points"),
+                rank.label("rank"),
+            )
+            .filter(User.points > 0)
+            .order_by(User.points.desc(), User.created_at.asc())
+            .limit(limit)
+            .offset(offset)
+            .all()
+        )
+
+        total = db.session.query(func.count(User.id).filter(User.points > 0)).scalar() or 0
+        return rows, total
+    
+    def all_time_current_user_row(self, user_id: int):
+        rank = self._all_time_rank_window()
+        return (
+            db.session.query(
+                User.id.label("user_id"),
+                User.username.label("username"),
+                User.points.label("points"),
+                rank.label("rank"),
+            )
+        
+            .filter(User.id == user_id)
+            .one_or_none()
+        )
+    
+
     def quiz_leaderboard_rows(self, quiz_id: int, limit: int, offset:int) -> Tuple[Sequence,int]:
         rank = self.rank_window()
         not_flagged = self._not_flagged_for_quiz(QuizSubmission.quiz_id, QuizSubmission.user_id)
