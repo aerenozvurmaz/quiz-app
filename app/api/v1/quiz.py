@@ -89,7 +89,7 @@ def api_finish_quiz(quiz_id:int):
         db.session.rollback()
         return fail(e, 400)
     
-@bp.post("/<int:quiz_id>/join")
+@bp.patch("/<int:quiz_id>/join")
 @jwt_required()
 def api_join_quiz(quiz_id:int):
     user_id = get_jwt_identity()
