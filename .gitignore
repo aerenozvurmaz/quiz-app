@@ -1,6 +1,12 @@
 venv/
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
+
+# Env & local artifacts
 .env
+.env.*
+db_data/
+redis_data/
