@@ -1,5 +1,6 @@
 import re, bcrypt
 from flask import Blueprint, request, session, jsonify, current_app
+from app.utils.responses import fail
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity,get_jwt, decode_token
 from sqlalchemy import or_, func
 from datetime import datetime, timezone
@@ -118,7 +119,8 @@ def api_refresh_token():
         return TokensResponseSchema().dump({"access_token": new_access, "refresh_token": new_refresh}), 200
     except ValueError as e:
         db.session.rollback()
-        return jsonify(error=str(e)), 401
+        return fail(e,401)
+    #    return jsonify(error=str(e)), 401
     except Exception:
         db.session.rollback()
         return jsonify(error="Could not rotate refrseh token"), 500

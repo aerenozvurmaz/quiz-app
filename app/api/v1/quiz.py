@@ -26,7 +26,7 @@ def api_active_quiz():
         return success({"active": False})
     data = QuizPaperPublicSchema().dump(q)
     total = get_total_user_for_quiz(q.id)
-    return success({"active":True, "quiz": data, "total participants": total})
+    return success({"active":True, "quiz": data, "total_participants": total})
 
 @bp.post("create")
 @admin_required
