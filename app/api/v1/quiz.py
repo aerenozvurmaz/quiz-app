@@ -1,11 +1,12 @@
 from flask import Blueprint, jsonify, request, current_app
+from app.repos.submission_repo import SubmissionRepo
 from app.services.leaderboard_service import list_past_quizzes_with_my_placement
 from app.utils.schema_decorators import use_schema
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.orm import selectinload
 from ...models import Quiz, QuizQuestion
 from ...services.quiz_service import (
-    add_question, ban_user, create_quiz, add_questions, delete_question, edit_quiz, get_my_answers, get_question_for_user, get_total_user_for_quiz, publish_quiz, finish_quiz,
+    add_question, ban_user, create_quiz, add_questions, delete_question, edit_quiz, get_answer_count, get_my_answers, get_question_for_user, get_total_user_for_quiz, publish_quiz, finish_quiz,
     join_quiz, save_answer, submit_quiz, get_active_quiz, warn_user, get_quiz_for_admin, get_quiz_for_user
 )
 from ...schemas.quiz import AnswerSchema, QuizCreateSchema, QuizPaperPublicSchema, QuizPaperSchema, QuestionSchema
@@ -122,10 +123,10 @@ def api_submit_quiz(quiz_id:int):
 @use_schema(AnswerSchema, arg_name="payload")
 def api_save_answer(quiz_id:int, question_id:int, payload):
     user_id = int(get_jwt_identity())
-    try:
+    if payload["option_id"] is not None:
         option_id = int(payload["option_id"])
-    except Exception:
-        return fail("option_id is required and must be inteeger",400)
+    else:
+        option_id = None
     try:
         result = save_answer(quiz_id=quiz_id, user_id=user_id,
                              question_id=question_id, option_id=option_id)
@@ -134,6 +135,19 @@ def api_save_answer(quiz_id:int, question_id:int, payload):
     except ValueError as e:
         db.session.rollback()
         return fail(e, 400)
+    
+@bp.get("/<int:quiz_id>/get_count")
+@jwt_required()
+def api_get_answer_count(quiz_id:int):
+    submission_repo = SubmissionRepo()
+    user_id = get_jwt_identity()
+    sub = submission_repo.get_for_user(quiz_id,user_id)
+    if not sub:
+        return fail("No submission found", 404)
+    answers = sub.answers or {}
+    return success(get_answer_count(quiz_id, answers))
+
+
 
     
 @bp.get("/<int:quiz_id>/paper")
@@ -146,7 +160,7 @@ def api_quiz_paper(quiz_id: int):
 @bp.get("/<int:quiz_id>/paper_admin")
 @admin_required
 def api_quiz_paper_admin(quiz_id: int):
-    q = get_quiz_for_user(quiz_id)
+    q = get_quiz_for_admin(quiz_id)
     if not q:
         return fail("Quiz not found", 404)
     return success(q)

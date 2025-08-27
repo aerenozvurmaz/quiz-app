@@ -1,7 +1,7 @@
 from __future__ import annotations
 from calendar import weekday
 from datetime import datetime, date, timedelta, timezone
-from typing import Iterable
+from typing import Iterable, Optional
 from psycopg2 import IntegrityError
 from sqlalchemy import String, select, func
 from sqlalchemy.orm import selectinload
@@ -93,7 +93,7 @@ def finish_quiz(quiz_id:int, when: datetime | None = None) -> None:
 
 def score_answers(quiz: Quiz, answers: dict[int, int]) -> int:
     total = 0
-    answers = {int(k): int(v) for k,v in (answers or {}).items()}
+    answers = {int(k):(int(v) if v is not None else None) for k,v in (answers or {}).items()}
     correct_map = {q.id: {o.id for o in q.options if o.is_correct} for q in quiz.questions}
     points_by_qid = {q.id: int(POINTS_BY_DIFF.get(q.difficulty, q.points or 0)) for q in quiz.questions}
     
@@ -128,7 +128,7 @@ def submit_quiz(*, quiz_id: int, user_id: int) -> QuizSubmission:
     if not sub:
         sub = submission_repo.add_draft(quiz_id,user_id)
     
-    answers_norm = {int(k): int(v) for k, v in (sub.answers or {}).items()}
+    answers_norm = {int(k): (int(v) if v is not None else None) for k, v in (sub.answers or {}).items()}
 
     sub.answers = answers_norm
     final_score = score_answers(quiz, sub.answers or {})
@@ -261,7 +261,7 @@ def add_question(quiz_id: int, data:dict) -> QuizQuestion:
         db.session.rollback()
         raise
 
-def save_answer(*, quiz_id: int, user_id: int, question_id:int, option_id:int) -> QuizSubmission:
+def save_answer(*, quiz_id: int, user_id: int, question_id:int, option_id: Optional[int]) -> QuizSubmission:
     user = user_repo.get_user_by_id(user_id)
     if not user.join_status == "joined":
         raise ValueError("User not joined on this quiz")
@@ -290,8 +290,8 @@ def save_answer(*, quiz_id: int, user_id: int, question_id:int, option_id:int) -
     if not sub:
         sub = submission_repo.add_draft(quiz_id, user_id)
 
-    answers = {int(k):int(v) for k, v in (sub.answers or {}).items()}
-    answers[int(question_id)] = int(option_id)
+    answers = {int(k):(int(v) if v is not None else None)for k, v in (sub.answers or {}).items()}
+    answers[int(question_id)] = option_id
     sub.answers = answers
 
     points_map = {q.id: q.points for q in quiz.questions}
@@ -485,3 +485,10 @@ def get_question_for_user(quiz_id: int, order_no: int) -> dict:
         "has_next": has_next,
         "max_order": max_order,
     }
+
+def get_answer_count(quiz_id: int, answers: dict) -> int:
+    quiz = quiz_repo.get_by_id(quiz_id)
+    if not quiz:
+        raise ValueError("Quiz not found")
+    
+    return len(answers or {})

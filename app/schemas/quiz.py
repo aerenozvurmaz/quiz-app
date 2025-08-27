@@ -36,7 +36,7 @@ class QuizPaperSchema(Schema):
     ))
 
 class AnswerSchema(Schema):
-    option_id = fields.Int(required=True)
+    option_id = fields.Int(required=False, allow_none=True, load_default=None)
 
 class QuizBriefSchema(Schema):
     id = fields.Int()

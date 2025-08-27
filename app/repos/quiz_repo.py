@@ -45,6 +45,8 @@ class QuizRepo:
             QuizQuestion.id == question_id, QuizQuestion.quiz_id == quiz_id).limit(1).first() is not None
     
     def option_belongs(self, option_id:int, question_id:int) -> bool:
+        if option_id is None:
+            return True
         return db.session.query(QuizOption.id).filter(
             QuizOption.id == option_id, QuizOption.question_id == question_id
             ).limit(1).first() is not None
@@ -113,3 +115,4 @@ class QuizRepo:
           .options(selectinload(QuizQuestion.options))
           .filter_by(id=question_id, quiz_id=quiz_id)
           .first())
+    
