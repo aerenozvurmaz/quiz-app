@@ -22,13 +22,12 @@ def api_forgot_password(payload):
     email = payload["email"].strip().lower()
 
     user = User.query.filter_by(email=email).first()
-    token = password_reset_serializer().dumps({"id": user.id, "email": user.email}, salt=password_reset_salt())
 
     if user:
         digit_code = f"{random.randint(0,999999):06d}"
         code_key = f"pwdreset:{user.email.lower()}:code"
         attm_key = f"pwdreset:{user.email.lower()}:attempts"
-        redis_client.setex(code_key, RESET_TTL_SECONDS, generate_password_hash(digit_code))
+        redis_client.setex(code_key, RESET_TTL_SECONDS, digit_code)
         redis_client.delete(attm_key) 
 
         try:
@@ -57,8 +56,8 @@ def api_reset_password(payload):
     
     code_key = f"pwdreset:{user.email.lower()}:code"
     attm_key = f"pwdreset:{user.email.lower()}:attempts"
-    code_hash = redis_client.get(code_key)
-    if code_hash is None:
+    code = redis_client.get(code_key)
+    if code is None:
         return jsonify(error= "Code has expired'"), 400
     
     attempts = redis_client.incr(attm_key)
@@ -70,7 +69,7 @@ def api_reset_password(payload):
     if attempts > 5:
         return jsonify(error='Too many attempts. Request a new code.'), 429
 
-    if not check_password_hash(code_hash, digit_code):
+    if not check_password_hash(code, digit_code):
         return jsonify(error='Invalid Codex!'), 400
 
     if not user:

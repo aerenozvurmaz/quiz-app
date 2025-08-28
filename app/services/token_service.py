@@ -1,16 +1,21 @@
 from __future__ import annotations
 from hmac import compare_digest
+import time
 from typing import Optional
 from sqlalchemy import delete, func, or_
+
+from app.repos.user_repo import UserRepo
 from ..extensions import db
 from ..models import RefreshToken
 from datetime import datetime, timezone
-from flask_jwt_extended import create_refresh_token, decode_token
+from flask_jwt_extended import create_refresh_token, create_access_token
 from ..utils.security import hash_refresh_token
+from flask_jwt_extended.utils import decode_token
 from ..repos.token_repo import TokenRepo
+from ..extensions import redis_client
 
 token_repo = TokenRepo()
-
+user_repo = UserRepo()
 def _ensure_refresh_claims(raw_token: str) -> dict:
     claims = decode_token(raw_token)
     typ = claims.get("type") or claims.get("token_type")
@@ -23,7 +28,11 @@ def _ensure_refresh_claims(raw_token: str) -> dict:
 def _device_label(device: Optional[str]):
     return (device or "unknown")[:80]
 
+def _acc_allow(jti:str) -> str: 
+    return f"acc:allow:{jti}"
 
+def _ttl_from_exp(exp_t:int) -> int:
+    return max(int(exp_t-time.time()),1)
 
 def user_has_active_refresh_token(user_id: int)->bool:
     return token_repo.has_active_for_user(user_id)
@@ -73,7 +82,7 @@ def revoke_all_for_user(user_id: int) -> int:
     return token_repo.revoke_all_for_user(user_id, when= func.now())
 
 def delete_refresh_by_jti(jti: str) -> None:
-    return token_repo.delete_by_jti
+    return token_repo.delete_by_jti(jti)
 
 def delete_all_for_user(user_id:int) -> None:
     return token_repo.delete_all_for_user(user_id)
@@ -81,3 +90,14 @@ def delete_all_for_user(user_id:int) -> None:
 def cleanup_tokens():
     token_repo.cleanup_expired_or_revoked()
 
+def mint_access_and_allow(identity: int, claims:dict | None = None, fresh: bool= False) -> str:
+    user = user_repo.get_user_by_id(identity)
+    claims = {"is_admin": bool(user.is_admin)}
+    token = create_access_token(identity=identity, additional_claims = claims or {}, fresh=fresh)
+    decode = decode_token(token)
+    jti, exp = decode["jti"], decode["exp"]
+    redis_client.setex(_acc_allow(jti), _ttl_from_exp(exp), identity)
+    return token
+
+def revoke_access_token(jti:str) -> None:
+    redis_client.delete(_acc_allow(jti))

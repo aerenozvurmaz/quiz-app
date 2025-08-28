@@ -1,6 +1,9 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
+
+from app.utils.security import init_jwt
 from .config import Config
+from .utils.security import init_jwt
 from .extensions import db, migrate, mail, jwt
 from .api.health import bp as health_bp
 from .api.v1.auth import bp as auth_bp
@@ -21,6 +24,7 @@ def create_app():
     migrate.init_app(app, db)
     mail.init_app(app)
     jwt.init_app(app)
+    init_jwt(app)
 
     app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp)

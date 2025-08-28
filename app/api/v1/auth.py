@@ -1,7 +1,7 @@
 import re, bcrypt
 from flask import Blueprint, request, session, jsonify, current_app
-from app.utils.responses import fail
-from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity,get_jwt, decode_token
+from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity,get_jwt
+from flask_jwt_extended.utils import decode_token  # <— prefer this import
 from sqlalchemy import or_, func
 from datetime import datetime, timezone
 from ...extensions import db, jwt
@@ -10,7 +10,7 @@ from ...utils.security import hash_password, check_password, hash_refresh_token
 from marshmallow import ValidationError
 from ...schemas.auth import RegisterSchema, LoginSchema, ChangePasswordSchema, TokensResponseSchema, MessageSchema
 from ...services.token_service import (
-    revoke_all_for_user, revoke_refresh_by_raw, user_has_active_refresh_token, issue_refresh_token, get_refresh_by_jti,
+    mint_access_and_allow, revoke_access_token, revoke_all_for_user, revoke_refresh_by_raw, user_has_active_refresh_token, issue_refresh_token, get_refresh_by_jti,
     delete_refresh_by_jti, delete_all_for_user
 )
 from ...services.auth_service import authenticate, change_password, is_email_banned, is_username_taken, is_email_taken, create_user
@@ -49,8 +49,7 @@ def api_login(payload):
     user = authenticate(payload["username"].strip(), payload["password"])
     if not user:
         return jsonify(error = 'Invalid credentials. Please try again.'),401
-    access = create_access_token(identity = user.id, additional_claims={"is_admin": user.is_admin}, fresh=True)
-
+    access = mint_access_and_allow(identity=user.id, fresh=True)
     if not user_has_active_refresh_token(user.id):
         try:
             refresh, _row = issue_refresh_token(user.id, device)
@@ -89,9 +88,11 @@ def api_change_password(payload):
 @jwt_required()
 def api_logout():
     user_id = int(get_jwt_identity())
+    user_jti = get_jwt()["jti"]
     
     try:
         revoke_all_for_user(user_id)
+        revoke_access_token(user_jti)
         db.session.commit()
         return MessageSchema().dump({"msg": "Logged out successfully"}), 200
     except Exception:
@@ -103,24 +104,34 @@ def api_logout():
 def api_refresh_token():
     claims = get_jwt()
     user_id = get_jwt_identity()
-    rjti = claims["jti"]
+    old_jti = claims["jti"]
 
-    row = get_refresh_by_jti( rjti)
+    row = get_refresh_by_jti(old_jti)
     if not row or row.user_id != user_id or (row.expires_at < datetime.now(timezone.utc)):
         return jsonify(error='Invalid or revoked refresh token!'), 401
  
     try:
-        revoke_refresh_by_raw(request.headers.get("Authorization", "").replace("Bearer ", "").strip() or "", expected_user_id=user_id)
+        #revoke_refresh_by_raw(request.headers.get("Authorization", "").replace("Bearer ", "").strip() or "", expected_user_id=user_id)
 
         device = request.headers.get("User-Device", "unknown")
-        new_access = create_access_token(identity=user_id, fresh=False)
-        new_refresh, _row = issue_refresh_token(user_id, device)
+
+        new_access = mint_access_and_allow(identity=user_id, fresh=False)
+        new_refresh = create_refresh_token(identity=user_id, additional_claims = {"device": device})
+        dt = decode_token(new_refresh)
+        new_jti = dt["jti"]
+        new_exp = datetime.fromtimestamp(dt["exp"], tz = timezone.utc)
+        #new_refresh, _row = issue_refresh_token(user_id, device)
+        row.jti = new_jti                       # or row.current_jti if you use that naming
+        row.token_hash = hash_refresh_token(new_refresh)  # whatever you already use to store/verify
+        row.expires_at = new_exp
+        row.device = device
+        row.created_at = datetime.now(timezone.utc)
+        row.revoked_at = None
         db.session.commit()
         return TokensResponseSchema().dump({"access_token": new_access, "refresh_token": new_refresh}), 200
     except ValueError as e:
         db.session.rollback()
-        return fail(e,401)
-    #    return jsonify(error=str(e)), 401
+        return jsonify(error=str(e)), 401
     except Exception:
         db.session.rollback()
         return jsonify(error="Could not rotate refrseh token"), 500
