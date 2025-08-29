@@ -61,7 +61,7 @@ def api_week_leaderboard(week_start_date: str):
 def api_all_time_leaderboard():
     user_id = get_jwt_identity()
     try:
-        limit = int(request.args.get("linit", 50))
+        limit = int(request.args.get("limit", 50))
         offset = int(request.args.get("offset", 0))
     except Exception:
         return jsonify(error="linit/offset must be integers"), 400

@@ -77,6 +77,7 @@ class LeaderboardRepo:
             User.username.label("username"),
             QuizSubmission.score.label("score"),
             QuizSubmission.submitted_at.label("submitted_at"),
+            Quiz.title.label("title"),
             rank.label("rank"),
             )
             .join(User, User.id == QuizSubmission.user_id)

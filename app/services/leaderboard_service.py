@@ -24,7 +24,8 @@ def get_quiz_leaderboard(quiz_id: int, limit: int = 10, offset: int = 0, user_id
         "username": r.username,
         "score": r.score,
         "submitted_at": r.submitted_at.isoformat() if r.submitted_at else None,
-        "rank": int(r.rank)
+        "rank": int(r.rank),
+        "title": r.title,
     } for r in rows]
 
     cur_user = None
@@ -75,6 +76,7 @@ def list_past_quizzes_with_my_placement(
     items.append(item)
 
     return{
+        "title": item.title,
         "limit": int(limit),
         "offset": int(offset),
         "total": total,
