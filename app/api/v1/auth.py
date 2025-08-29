@@ -1,5 +1,6 @@
 import re, bcrypt
 from flask import Blueprint, request, session, jsonify, current_app
+from app.repos.user_repo import UserRepo
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity,get_jwt
 from flask_jwt_extended.utils import decode_token  # <— prefer this import
 from sqlalchemy import or_, func
@@ -18,6 +19,17 @@ from ...utils.schema_decorators import use_schema
 
 
 bp = Blueprint('auth', __name__, url_prefix="/api/v1/auth")
+
+user_repo = UserRepo()
+
+@bp.get('/join_status')
+@jwt_required()
+def api_get_join_status():
+
+    user_id = get_jwt_identity()
+    user = user_repo.get_user_by_id(user_id)
+    return jsonify(user.join_status, 200)
+
 
 @bp.post('/register')
 @use_schema(RegisterSchema, arg_name="payload")
@@ -121,8 +133,8 @@ def api_refresh_token():
         new_jti = dt["jti"]
         new_exp = datetime.fromtimestamp(dt["exp"], tz = timezone.utc)
         #new_refresh, _row = issue_refresh_token(user_id, device)
-        row.jti = new_jti                       # or row.current_jti if you use that naming
-        row.token_hash = hash_refresh_token(new_refresh)  # whatever you already use to store/verify
+        row.jti = new_jti                       
+        row.token_hash = hash_refresh_token(new_refresh)  
         row.expires_at = new_exp
         row.device = device
         row.created_at = datetime.now(timezone.utc)
@@ -135,3 +147,4 @@ def api_refresh_token():
     except Exception:
         db.session.rollback()
         return jsonify(error="Could not rotate refrseh token"), 500
+    
