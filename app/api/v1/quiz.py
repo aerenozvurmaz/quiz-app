@@ -9,7 +9,7 @@ from ...services.quiz_service import (
     add_question, ban_user, create_quiz, add_questions, delete_question, edit_quiz, get_answer_count, get_my_answers, get_question_for_user, get_total_user_for_quiz, publish_quiz, finish_quiz,
     join_quiz, save_answer, submit_quiz, get_active_quiz, warn_user, get_quiz_for_admin, get_quiz_for_user
 )
-from ...schemas.quiz import AnswerSchema, QuizCreateSchema, QuizPaperPublicSchema, QuizPaperSchema, QuestionSchema
+from ...schemas.quiz import AnswerSchema, QuizCreateSchema, QuizPaperPublicSchema, QuestionSchema
 from ...utils.auth import admin_required
 from ...utils.responses import success, fail
 from ...extensions import db

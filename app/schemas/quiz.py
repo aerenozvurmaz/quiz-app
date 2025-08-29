@@ -25,15 +25,6 @@ class QuizCreateSchema(Schema):
     closes_at = fields.DateTime(required=True)
     questions = fields.List(fields.Nested(QuestionSchema), load_default = [])
 
-class QuizPaperSchema(Schema):
-    id = fields.Int()
-    title = fields.Str()
-    week_start_date = fields.Date()
-    opens_at = fields.DateTime()
-    closes_at = fields.DateTime()
-    questions = fields.List(fields.Nested(
-        lambda: QuestionSchema(exclude=("difficulty",), many= False)
-    ))
 
 class AnswerSchema(Schema):
     option_id = fields.Int(required=False, allow_none=True, load_default=None)

@@ -138,6 +138,8 @@ def submit_quiz(*, quiz_id: int, user_id: int) -> QuizSubmission:
     submission_repo.submit_quiz(sub, func.now(), total)
     user_repo.add_points(user_id, total)
     user_repo.update_join_status(user, "submitted")
+    user_repo.update_score(user, total)
+
     return sub
 
 def join_quiz(user_id:int, quiz_id:int):
@@ -151,6 +153,8 @@ def join_quiz(user_id:int, quiz_id:int):
     if user.user_status == "banned":
         raise ValueError("user banned from this application")
     quiz = quiz_repo.get_by_id(quiz_id)
+    if not quiz:
+        raise ValueError("Quiz not found")
     if not quiz.opens_at:
         raise ValueError("Quiz not opened yet")
     if datetime.now(timezone.utc) >= quiz.closes_at:

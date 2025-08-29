@@ -70,7 +70,7 @@ def api_reset_password(payload):
         return jsonify(error='Too many attempts. Request a new code.'), 429
 
     if not check_password_hash(code, digit_code):
-        return jsonify(error='Invalid Codex!'), 400
+        return jsonify(error='Invalid Code!'), 400
 
     if not user:
         return jsonify(error='Invalid code!'), 400

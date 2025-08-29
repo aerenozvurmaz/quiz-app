@@ -15,6 +15,9 @@ class UserRepo:
     def update_join_status(self, user: User, status:str):
         user.join_status = status
 
+    def update_score(self, user:User, points:int):
+        user.points = user.points + points
+
     def exists_username(self, username:str) -> bool:
         return (db.session.query(User.id).filter_by(username=username.strip()).first()) is not None
     
