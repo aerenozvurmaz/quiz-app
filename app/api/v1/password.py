@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from flask_mail import Message
 from itsdangerous import BadSignature, SignatureExpired
 
+from app.repos.user_repo import UserRepo
 from app.services.token_service import revoke_all_for_user
 from app.utils.schema_decorators import use_schema
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -12,6 +13,9 @@ from ...utils.security import hash_password
 from ...utils.tokens import password_reset_serializer, password_reset_salt
 from ...schemas.auth import ForgotPasswordSchema, ResetPasswordSchema, MessageSchema
 
+user_repo = UserRepo()
+
+
 bp = Blueprint('password', __name__, url_prefix="/api/v1/password")
 
 RESET_TTL_SECONDS = 3600
@@ -20,7 +24,9 @@ RESET_TTL_SECONDS = 3600
 @use_schema(ForgotPasswordSchema, arg_name="payload")
 def api_forgot_password(payload):
     email = payload["email"].strip().lower()
-
+    
+    if not user_repo.exists_email(email):
+        raise ValueError("Email does not exist")
     user = User.query.filter_by(email=email).first()
 
     if user:
@@ -51,9 +57,13 @@ def api_reset_password(payload):
     new_password_again = payload["new_password_again"]
     user = User.query.filter_by(email=email).first()
 
+    if not user_repo.exists_email(email):
+        return jsonify(error="Email does not exist")
+    
     if not new_password == new_password_again:
         return jsonify(error="Passwords not match")
     
+
     code_key = f"pwdreset:{user.email.lower()}:code"
     attm_key = f"pwdreset:{user.email.lower()}:attempts"
     code = redis_client.get(code_key)
@@ -69,7 +79,7 @@ def api_reset_password(payload):
     if attempts > 5:
         return jsonify(error='Too many attempts. Request a new code.'), 429
 
-    if not check_password_hash(code, digit_code):
+    if not digit_code:
         return jsonify(error='Invalid Code!'), 400
 
     if not user:
